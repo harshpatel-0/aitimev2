@@ -60,7 +60,7 @@ export default function HomeScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Image
-          source={require("../../assets/images/husky.png")}
+          source={require("../../../assets/images/husky.png")}
           style={styles.logo}
         />
         <View style={styles.textContainer}>

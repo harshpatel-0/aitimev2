@@ -3,15 +3,17 @@ import {
   StyleSheet,
   Text,
   View,
-  TextInput,
   TouchableOpacity,
-  Dimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as WebBrowser from "expo-web-browser";
-import SocialLoginButton from "@/components/SocialLoginButton"; // Adjust import if needed
 import { useRouter } from "expo-router";
 import { useSignIn } from "@clerk/clerk-expo";
+import Input from "@/components/Input"; // Ensure this component exists
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { MaterialIcons } from "@expo/vector-icons";
+import { PRIMARY_COLOR } from "@/constants/sign-in";
+import SocialLoginButton from "@/components/SocialLoginButton";
 
 // Warm up the browser for Android OAuth flows
 WebBrowser.maybeCompleteAuthSession();
@@ -32,11 +34,10 @@ export default function SignInPage() {
   // State for credential-based sign in
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { isLoaded: isSignInLoaded, signIn, setActive } = useSignIn();
+  const { isLoaded, signIn, setActive } = useSignIn();
 
-  // Handler for credential-based log in
   const handleLogin = async () => {
-    if (!isSignInLoaded) return;
+    if (!isLoaded) return;
     try {
       const result = await signIn.create({
         identifier: email,
@@ -44,7 +45,7 @@ export default function SignInPage() {
       });
       if (result.createdSessionId) {
         setActive({ session: result.createdSessionId });
-        router.replace("/home");
+        router.replace("/survey");
       } else {
         console.error("Additional steps required for sign in", result);
       }
@@ -53,56 +54,69 @@ export default function SignInPage() {
     }
   };
 
-  // Navigate to sign-up page when the user taps "Sign Up"
   const handleSignUpPress = () => {
+    console.log("Navigating to sign-up");
     router.push("/(auth)/sign-up");
   };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Title and brief description */}
-      <Text style={styles.title}>AITime</Text>
-      <Text style={styles.subtitle}>
-        Your AI-powered calendar for work, life, & school
-      </Text>
-
-      {/* Credential form */}
-      <View style={styles.formContainer}>
-        <TextInput
-          placeholder="Email"
-          placeholderTextColor="#999"
-          style={styles.input}
-          keyboardType="email-address"
+      <View style={styles.mainContainer}>
+        <Text style={styles.title}>AITime</Text>
+        <Text style={styles.description}>
+          Your{" "}
+          <Text style={styles.bold}>AI-powered, tailored</Text> calendar{"\n"}for work, life, & school
+        </Text>
+      </View>
+      <View style={styles.inputContainer}>
+        <Input
+          label="Your email"
+          placeholder="Enter email"
+          autoCapitalize="none"
           value={email}
           onChangeText={setEmail}
+          icon={() => (
+            <MaterialCommunityIcons
+              name="email-outline"
+              size={24}
+              color="#6e6e6e"
+            />
+          )}
         />
-        <TextInput
-          placeholder="Password"
-          placeholderTextColor="#999"
-          style={styles.input}
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-        />
-        <TouchableOpacity style={styles.forgotContainer}>
-          <Text style={styles.forgotText}>Forgot password?</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-          <Text style={styles.loginButtonText}>Log In</Text>
-        </TouchableOpacity>
-
-        {/* OR & social login */}
-        <Text style={styles.orText}>OR</Text>
-        <SocialLoginButton />
-
-        {/* Sign Up link */}
-        <View style={styles.signUpContainer}>
-          <Text style={styles.signUpText}>Don’t have an account? </Text>
-          <TouchableOpacity onPress={handleSignUpPress}>
-            <Text style={styles.signUpLink}>Sign Up</Text>
-          </TouchableOpacity>
+        <View style={{ marginTop: 4 }}>
+          <Input
+            label="Your password"
+            placeholder="Enter password"
+            autoCapitalize="none"
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+            icon={() => (
+              <MaterialIcons name="lock-outline" size={28} color="#6e6e6e" />
+            )}
+          />
         </View>
+
+        <TouchableOpacity style={styles.forgotPasswordButton}>
+          <Text style={styles.forgotPassword}>Forgot password?</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.logInButton} onPress={handleLogin}>
+          <Text style={styles.login}>Log in</Text>
+        </TouchableOpacity>
+
+        <SocialLoginButton />
+        <Text style={styles.quote}>
+          <Text style={styles.bold}>—</Text> where your calendar meets you!
+        </Text>
+        
+      </View>
+      
+
+      <View style={styles.bottomContainer}>
+        <Text style={styles.account}>Don't have an account?</Text>
+        <TouchableOpacity onPress={handleSignUpPress}>
+          <Text style={styles.createAnAccount}> Sign up</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -111,82 +125,81 @@ export default function SignInPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    // Make the entire screen blue
-    backgroundColor: "#007BFF",
+    paddingHorizontal: 24,
+    width: "100%",
     alignItems: "center",
-  },
-  title: {
-    marginTop: 140,
-    fontSize: 40,
-    fontWeight: "bold",
-    color: "#fff",
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#fff",
-    textAlign: "center",
-    marginTop: 8,
-    marginBottom: 20,
-    paddingHorizontal: 20,
-  },
-  formContainer: {
-    // Use most of the screen width so the inputs are nicely spaced
-    width: "90%",
-    marginTop: 20,
-  },
-  input: {
-    backgroundColor: "#F5F5F5",
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 15,
-    fontSize: 16,
-    color: "#333",
-    marginBottom: 10,
-  },
-  forgotContainer: {
-    alignSelf: "flex-end",
-    marginBottom: 10,
-  },
-  forgotText: {
-    fontSize: 14,
-    color: "#fff",
-    fontWeight: "500",
-  },
-  loginButton: {
-    backgroundColor: "#fff",
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: "center",
-    marginVertical: 10,
-  },
-  loginButtonText: {
-    color: "#007BFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  orText: {
-    marginTop: 10,
-    marginBottom: 10,
-    fontSize: 14,
-    color: "#fff",
-    fontWeight: "500",
-    textAlign: "center",
-  },
-  signUpContainer: {
-    flexDirection: "row",
-    marginTop: 15,
     justifyContent: "center",
   },
-  signUpText: {
-    fontSize: 15,
-    paddingVertical: 270,
-    color: "#fff",
+  mainContainer: {
+    flex: 1,
+    justifyContent: "flex-end",
+    width: "100%",
   },
-  signUpLink: {
-    fontSize: 15,
-    paddingVertical: 270,
-    fontWeight: "500",
-    color: "#fff",
-    textDecorationLine: "underline",
+  title: {
+    fontSize: 48,
+    fontWeight: "800",
+    color: PRIMARY_COLOR,
+    textAlign: "center",
+  },
+  description: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#6e6e6e",
+    textAlign: "center",
+  },
+  quote: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#6e6e6e",
+    textAlign: "center",
+    top: 35,
+  },
+  bold: {
+    fontWeight: "bold",
+  },
+  inputContainer: {
+    flex: 1,
+    width: "100%",
+    marginTop: 27,
+
+  },
+  logInButton: {
+    width: "100%",
+    padding: 16,
+    backgroundColor: PRIMARY_COLOR,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 10,
+  },
+  login: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  forgotPasswordButton: {
+    marginTop: 8,
+    alignSelf: "flex-end",
+  },
+  forgotPassword: {
+    color: PRIMARY_COLOR,
+    fontWeight: "600",
+  },
+  bottomContainer: {
+    flex: 1,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "flex-end",
+  },
+  account: {
+    color: "#6e6e6e",
+    fontWeight: "600",
+    bottom: 20,
+  },
+  createAnAccount: {
+    color: PRIMARY_COLOR,
+    fontWeight: "600",
+    bottom: 20,
   },
 });
+

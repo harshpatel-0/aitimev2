@@ -78,6 +78,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
+    top: 20,
   },
   buttonText: {
     // Make text color black (or any contrasting color)
