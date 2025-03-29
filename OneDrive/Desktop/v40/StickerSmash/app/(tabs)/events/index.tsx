@@ -1,4 +1,3 @@
-// Test
 import React, { useEffect, useState } from "react";
 import { 
   View, 
@@ -9,7 +8,9 @@ import {
   ActivityIndicator, 
   Dimensions, 
   Button,
-  ScrollView
+  ScrollView, 
+  SafeAreaView,
+  StatusBar
 } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -30,6 +31,7 @@ interface GroupedData {
 }
 
 const screenWidth = Dimensions.get("window").width;
+const screenHeight = Dimensions.get("window").height
 const months = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"
@@ -180,36 +182,43 @@ export default function CombinedCalendarEventsScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       {/* Month / Year + Navigation */}
-      <View style={styles.monthContainer}>
-        <Button title="<" onPress={handlePrevMonth} color="white" />
-        <Text style={styles.monthText}>
-          {months[currentMonth]} {currentYear}
-        </Text>
-        <Button title=">" onPress={handleNextMonth} color="white" />
-      </View>
+      <View style={styles.dateNavigatorContainer}>
+        <View style={styles.monthContainer}>
+          <Button title="<" onPress={handlePrevMonth} color="white" />
+          <Text style={styles.monthText}>
+            {months[currentMonth]} {currentYear}
+          </Text>
+          <Button title=">" onPress={handleNextMonth} color="white" />
+        </View>
 
-      {/* Horizontal Day List */}
-      <FlatList
-        data={days}
-        horizontal
-        keyExtractor={(item) => item.date.toString()}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.flatListContainer}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[
-              styles.dateItem,
-              selectedDate === item.date && styles.selectedDate,
-            ]}
-            onPress={() => setSelectedDate(item.date)}
-          >
-            <Text style={styles.dayText}>{item.day}</Text>
-            <Text style={styles.dateText}>{item.date}</Text>
-          </TouchableOpacity>
-        )}
-      />
+        {/* Horizontal Day List */}
+        <FlatList
+          data={days}
+          horizontal
+          keyExtractor={(item) => item.date.toString()}
+          showsHorizontalScrollIndicator={false}
+          style={{ height: 100 }}
+          contentContainerStyle={styles.flatListContainer}
+          renderItem={({ item }) => {
+            const isSelected = selectedDate === item.date;
+            return (
+              <TouchableOpacity
+              style={[
+                styles.dateItem,
+                isSelected && styles.selectedDate,
+              ]}
+              onPress={() => setSelectedDate(item.date)}
+            >
+              <Text style={[styles.dayText, isSelected && styles.selectedText]}>{item.day}</Text>
+              <Text style={[styles.dateText, isSelected && styles.selectedText]}>{item.date}</Text>
+            </TouchableOpacity>
+            );
+          }}
+        />
+      </View>
 
       {/* Scrollable Container for Events */}
       <ScrollView
@@ -277,28 +286,35 @@ export default function CombinedCalendarEventsScreen() {
           )}
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#3A73AF",
-    paddingVertical: 20,
+    backgroundColor: "white",
     alignItems: "center",
-    paddingBottom: 70,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },
+  dateNavigatorContainer:{
+    flexDirection: "column",
+    alignItems: "center",
+    alignSelf: "auto",
+    backgroundColor: "#3A73AF",
+    width: screenWidth * 0.98,
+    height: screenHeight * 0.25,
+    borderRadius: 15,
+  },
   monthContainer: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    width: screenWidth * 0.8,
+    width: screenWidth * 0.92,
     marginBottom: 0,
   },
   monthText: {
@@ -308,7 +324,8 @@ const styles = StyleSheet.create({
     padding: 25,
   },
   flatListContainer: {
-    paddingHorizontal: 15,
+    paddingHorizontal: 10,
+    alignItems: "center",
   },
   dateItem: {
     width: 60,
@@ -316,11 +333,18 @@ const styles = StyleSheet.create({
     marginHorizontal: 5,
     backgroundColor: "#5784BA",
     borderRadius: 15,
+    borderColor: "white",
+    borderWidth: 1,
     justifyContent: "center",
     alignItems: "center",
   },
   selectedDate: {
     backgroundColor: "white",
+    borderColor: "black",
+    borderWidth: 1,
+  },
+  selectedText: {
+    color: "black"
   },
   dayText: {
     fontSize: 14,
@@ -332,17 +356,17 @@ const styles = StyleSheet.create({
     color: "white",
   },
   eventsScroll: {
-    flex: 1,
-    width: "100%",
     marginTop: 10,
   },
   eventsScrollContent: {
-    paddingBottom: 20,
+    // paddingBottom: 20,
     alignItems: "center",
+    backgroundColor: "lightgray",
+    borderRadius: 10,
   },
   eventContainer: {
-    marginTop: 10,
-    backgroundColor: "white",
+    // marginTop: 10,
+    backgroundColor: "lightgray",
     padding: 10,
     width: screenWidth * 0.9,
     borderRadius: 10,
