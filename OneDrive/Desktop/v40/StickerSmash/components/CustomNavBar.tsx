@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: PRIMARY_COLOR,
+    backgroundColor: "#3478F6",
     width: "60%",
     alignSelf: "center",
     bottom: 40,

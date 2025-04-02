@@ -65,7 +65,7 @@ export default function SignInPage() {
         <Text style={styles.title}>AITime</Text>
         <Text style={styles.description}>
           Your{" "}
-          <Text style={styles.bold}>AI-powered, tailored</Text> calendar{"\n"}for work, life, & school
+          <Text style={styles.bold}>AI-powered, personalized</Text> calendar{"\n"}for work, life, & school
         </Text>
       </View>
       <View style={styles.inputContainer}>

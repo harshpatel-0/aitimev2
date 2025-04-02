@@ -1,33 +1,105 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  TextInput,
   Image,
   TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { useRouter, useNavigation } from "expo-router";
-import { useUser, useAuth } from "@clerk/clerk-expo";
+import { useUser } from "@clerk/clerk-expo";
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 
-const events = [
-  { id: "1", title: "Career Fair", time: "15:00 - 15:30", bgColor: "#F9F9F9" },
-  { id: "2", title: "Group Fitness Class", time: "11:00 - 11:30", bgColor: "#FDEAE7" },
-  { id: "3", title: "Art Exhibit", time: "14:00 - 15:00", bgColor: "#EAF4FF" },
-  { id: "4", title: "Art Exhibit", time: "14:00 - 15:00", bgColor: "#EAF4FF" },
+// Helper function to parse event date from a string like "Thursday, March 30 at 11:35AM"
+function parseEventDate(timeStr) {
+  const regex = /[A-Za-z]+,\s+([A-Za-z]+)\s+(\d+)/;
+  const match = timeStr.match(regex);
+  if (match) {
+    const monthName = match[1];
+    const date = parseInt(match[2], 10);
+    const monthMap = {
+      January: 1,
+      February: 2,
+      March: 3,
+      April: 4,
+      May: 5,
+      June: 6,
+      July: 7,
+      August: 8,
+      September: 9,
+      October: 10,
+      November: 11,
+      December: 12,
+    };
+    return { month: monthMap[monthName], date };
+  }
+  return null;
+}
+
+// Static arrays for trending and personalized events
+const trendingEvents = [
+  {
+    id: "1",
+    title: "Career Fair",
+    time: "Thursday, March 30 at 15:00",
+    gradient: ["#FEC84B", "#FDA65A"],
+    icon: "briefcase",
+  },
+  {
+    id: "2",
+    title: "Group Fitness Class",
+    time: "Thursday, March 30 at 11:00",
+    gradient: ["#B9E4F1", "#EAF4FF"],
+    icon: "barbell",
+  },
+  {
+    id: "3",
+    title: "Art Exhibit",
+    time: "Thursday, March 30 at 14:00",
+    gradient: ["#FFF5CC", "#FDEEA8"],
+    icon: "color-palette",
+  },
+  {
+    id: "4",
+    title: "Music Fest",
+    time: "Thursday, March 30 at 19:00",
+    gradient: ["#D1D8E0", "#F9F9F9"],
+    icon: "musical-notes",
+  },
+];
+
+const personalizedEvents = [
+  {
+    id: "5",
+    title: "Tech Talk",
+    time: "Thursday, March 30 at 16:00",
+    gradient: ["#8EC5FC", "#E0C3FC"],
+    icon: "laptop-outline",
+  },
+  {
+    id: "6",
+    title: "Cooking Workshop",
+    time: "Thursday, March 30 at 12:00",
+    gradient: ["#FF9A9E", "#FAD0C4"],
+    icon: "restaurant",
+  },
 ];
 
 export default function HomeScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const { isLoaded, user } = useUser();
-  const { signOut } = useAuth();
+  const [todaysEventCount, setTodaysEventCount] = useState(0);
+  const [fetchingEvents, setFetchingEvents] = useState(true);
 
   useEffect(() => {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
-  // When Clerk is loaded, if there's no user, redirect to sign‑in.
+  // Redirect to sign‑in if no user.
   useEffect(() => {
     if (!isLoaded) return;
     if (!user) {
@@ -37,6 +109,39 @@ export default function HomeScreen() {
     }
   }, [isLoaded, user, router]);
 
+  // Fetch events from API and calculate today's event count.
+  useEffect(() => {
+    const today = new Date();
+    const currentMonth = today.getMonth() + 1;
+    const currentDate = today.getDate();
+
+    fetch("https://2lt3y32cwl.execute-api.us-east-1.amazonaws.com/dev/clubs")
+      .then((response) => response.json())
+      .then((data) => {
+        let eventsData = [];
+        if (data.body) {
+          try {
+            eventsData = JSON.parse(data.body);
+          } catch (err) {
+            console.error("Error parsing API body:", err);
+          }
+        } else {
+          eventsData = data;
+        }
+        // Filter events where the parsed month and date match today's month and date.
+        const todaysEvents = eventsData.filter((evt) => {
+          const parsed = parseEventDate(evt.Time);
+          return parsed && parsed.month === currentMonth && parsed.date === currentDate;
+        });
+        setTodaysEventCount(todaysEvents.length);
+        setFetchingEvents(false);
+      })
+      .catch((error) => {
+        console.error("Error fetching events:", error);
+        setFetchingEvents(false);
+      });
+  }, []);
+
   if (!isLoaded) {
     return (
       <View style={styles.loadingContainer}>
@@ -44,77 +149,114 @@ export default function HomeScreen() {
       </View>
     );
   }
-  if (!user) return null;
+  if (!user) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text>Signing out...</Text>
+      </View>
+    );
+  }
 
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      // Once signOut completes, user becomes null and the effect above redirects.
-    } catch (err) {
-      console.error("Error signing out:", err);
-    }
-  };
+  const totalEvents = trendingEvents.length;
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Image
-          source={require("../../../assets/images/husky.png")}
-          style={styles.logo}
-        />
-        <View style={styles.textContainer}>
-          <Text style={styles.extraBoldText}>Good Morning,</Text>
-          <Text style={styles.boldHuskyText}>
-            {user.firstName || "Husky"}!
-          </Text>
+    <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <View style={styles.container}>
+        {/* Centered Greeting */}
+        <Text style={styles.welcomeText}>
+          Welcome, <Text style={styles.userName}>{user.firstName || "Guest"}</Text>.
+        </Text>
+
+        {/* Info Card (Today's Events) */}
+        <View style={styles.infoCard}>
+          <View style={styles.infoCardContent}>
+            <Text style={styles.cardTitle}>Today's Events</Text>
+            {fetchingEvents ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.cardValue}>{todaysEventCount} Events</Text>
+            )}
+            <TouchableOpacity
+              style={styles.ctaButton}
+              onPress={() => router.push("/events")}
+            >
+              <Text style={styles.ctaButtonText}>Explore Events</Text>
+            </TouchableOpacity>
+          </View>
+          <Image
+            source={require("../../../assets/images/husky.png")}
+            style={styles.uconnLogo}
+          />
         </View>
-      </View>
 
-      {/* Search Bar */}
-      <TextInput
-        style={styles.searchBar}
-        placeholder="Search Event..."
-        placeholderTextColor="#FFF"
-      />
-
-      {/* Trending Events */}
-      <View style={styles.sectionTitleContainer}>
-        <Text style={styles.sectionTitle}>Today’s</Text>
-        <Text style={styles.trendingText}>Trending Events:</Text>
-      </View>
-
-      {/* Events Grid */}
-      <View style={styles.eventsGrid}>
-        {events.map((event) => (
-          <TouchableOpacity
-            key={event.id}
-            style={[styles.eventCard, { backgroundColor: event.bgColor }]}
-            onPress={() => router.push(`/events/${event.id}`)}
-          >
-            <Text style={styles.eventTitle}>{event.title}</Text>
-            <Text style={styles.eventTime}>{event.time}</Text>
+        {/* Trending Events Section */}
+        <View style={styles.eventsHeader}>
+          <Text style={styles.eventsHeaderText}>Trending Events</Text>
+          <TouchableOpacity onPress={() => router.push("/events")}>
+            <Text style={styles.seeAllText}>See All</Text>
           </TouchableOpacity>
-        ))}
-        {/* View More Button Styled as a Card */}
-        <TouchableOpacity
-          style={styles.viewMoreCard}
-          onPress={() => router.push("/events")}
-        >
-          <Text style={styles.viewMoreText}>View More</Text>
-          <Text style={styles.viewMoreSubText}>+3 schedule</Text>
-        </TouchableOpacity>
-      </View>
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.eventsHorizontalScroll}>
+          {trendingEvents.map((event) => (
+            <TouchableOpacity
+              key={event.id}
+              onPress={() => router.push(`/events/${event.id}`)}
+              style={styles.cardWrapper}
+            >
+              <LinearGradient
+                colors={event.gradient}
+                style={styles.eventCard}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <Text style={styles.eventTitle}>{event.title}</Text>
+                <Text style={styles.eventTime}>{event.time}</Text>
+                <View style={styles.iconCircle}>
+                  <Ionicons name={event.icon} size={24} color="#fff" />
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
 
-      {/* Sign Out Button */}
-      <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-        <Text style={styles.signOutButtonText}>Sign Out</Text>
-      </TouchableOpacity>
-    </View>
+        {/* Personalized Events Section */}
+        <View style={styles.eventsHeader}>
+          <Text style={styles.eventsHeaderText}>Your Personalized Events</Text>
+          <TouchableOpacity onPress={() => router.push("/events/personalized")}>
+            <Text style={styles.seeAllText}>See All</Text>
+          </TouchableOpacity>
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.eventsHorizontalScroll}>
+          {personalizedEvents.map((event) => (
+            <TouchableOpacity
+              key={event.id}
+              onPress={() => router.push(`/events/${event.id}`)}
+              style={styles.cardWrapper}
+            >
+              <LinearGradient
+                colors={event.gradient}
+                style={styles.eventCard}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <Text style={styles.eventTitle}>{event.title}</Text>
+                <Text style={styles.eventTime}>{event.time}</Text>
+                <View style={styles.iconCircle}>
+                  <Ionicons name={event.icon} size={24} color="#fff" />
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  scrollContainer: {
+    paddingBottom: 40,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
@@ -122,115 +264,115 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: "#F5F5F5",
     paddingHorizontal: 20,
-    paddingTop: 100,
-    paddingBottom: 80, // extra padding if needed for content above tabs
+    paddingTop: 60,
+    backgroundColor: "#F9F9F9",
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  logo: {
-    width: 85,
-    height: 85,
-    marginRight: 10,
-  },
-  textContainer: {
-    flex: 1,
-    alignItems: "flex-end",
-  },
-  extraBoldText: {
-    fontWeight: "900",
+  welcomeText: {
     fontSize: 32,
-    color: "#3478F6",
-    textAlign: "right",
-  },
-  boldHuskyText: {
-    fontWeight: "bold",
-    fontSize: 28,
-    color: "#3478F6",
-    textAlign: "right",
-  },
-  searchBar: {
-    backgroundColor: "#3478F6",
-    padding: 25,
-    borderRadius: 15,
-    fontSize: 19,
     fontWeight: "bold",
     marginBottom: 20,
     textAlign: "center",
-    color: "#FFF",
+    color: "#333",
   },
-  sectionTitleContainer: {
+  userName: {
+    color: "#3478F6",
+  },
+  infoCard: {
+    backgroundColor: "#3478F6",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 30,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  infoCardContent: {
+    flex: 1,
+  },
+  cardTitle: {
+    fontSize: 18,
+    color: "#fff",
+    marginBottom: 5,
+    fontWeight: "600",
+  },
+  cardValue: {
+    fontSize: 32,
+    color: "#fff",
+    fontWeight: "bold",
     marginBottom: 10,
   },
-  sectionTitle: {
-    fontSize: 35,
-    fontWeight: "900",
-    color: "#000",
-    marginBottom: -5,
+  ctaButton: {
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    alignSelf: "flex-start",
   },
-  trendingText: {
-    fontSize: 35,
-    fontWeight: "900",
+  ctaButtonText: {
     color: "#3478F6",
-    textDecorationLine: "underline",
+    fontSize: 16,
+    fontWeight: "bold",
   },
-  eventsGrid: {
+  uconnLogo: {
+    width: 110,
+    height: 110,
+    marginLeft: 15,
+  },
+  eventsHeader: {
     flexDirection: "row",
-    flexWrap: "wrap",
     justifyContent: "space-between",
-    marginBottom: 20,
+    alignItems: "center",
+    marginBottom: 15,
+  },
+  eventsHeaderText: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  seeAllText: {
+    fontSize: 14,
+    color: "#3478F6",
+    fontWeight: "600",
+  },
+  eventsHorizontalScroll: {
+    marginBottom: 30,
+  },
+  cardWrapper: {
+    marginRight: 16,
   },
   eventCard: {
-    backgroundColor: "#FFF",
-    padding: 20,
+    width: 140,
+    height: 180,
     borderRadius: 20,
-    marginBottom: 15,
-    width: "48%",
+    padding: 15,
+    justifyContent: "flex-start",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.15,
     shadowRadius: 5,
+    elevation: 3,
   },
   eventTitle: {
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: "700",
+    color: "#fff",
+    marginBottom: 4,
   },
   eventTime: {
-    fontSize: 14,
-    color: "#666",
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#fff",
   },
-  viewMoreCard: {
-    backgroundColor: "#000",
-    padding: 20,
+  iconCircle: {
+    position: "absolute",
+    bottom: 10,
+    right: 10,
+    width: 40,
+    height: 40,
     borderRadius: 20,
-    width: "48%",
+    backgroundColor: "rgba(255,255,255,0.25)",
     alignItems: "center",
     justifyContent: "center",
-  },
-  viewMoreText: {
-    fontSize: 16,
-    color: "#FFF",
-    fontWeight: "bold",
-  },
-  viewMoreSubText: {
-    fontSize: 12,
-    color: "#AAA",
-  },
-  signOutButton: {
-    width: "80%",
-    backgroundColor: "#E5383B",
-    padding: 16,
-    borderRadius: 8,
-    marginTop: 20,
-    alignItems: "center",
-    alignSelf: "center",
-  },
-  signOutButtonText: {
-    color: "#fff",
-    fontSize: 16,
   },
 });

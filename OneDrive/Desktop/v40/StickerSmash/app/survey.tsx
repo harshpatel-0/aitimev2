@@ -1,260 +1,169 @@
-// app/survey.tsx
-import React, { useState } from "react";
-import {
-  StyleSheet,
-  Text,
-  View,
-  TouchableOpacity,
-  SafeAreaView,
-} from "react-native";
-import { useRouter } from "expo-router";
+import React, { useState, useEffect } from "react";
+import { View, Text, ActivityIndicator, StyleSheet } from "react-native";
 import { useAuth } from "@clerk/clerk-expo";
-import { PRIMARY_COLOR } from "@/constants/sign-in";
+import { GoogleGenerativeAI } from "@google/generative-ai"; // Correct import
 
-// Example question array
+// Define the survey questions as provided
 const QUESTIONS = [
   {
-    text: "Which one of the following is the greatest circle?",
-    options: ["Arctic Circle", "Equator", "Tropic of cancer", "Tropic of capricorn"],
+    text: "What’s your major & are there other academic interests you’d like to explore?",
+    input: true,
   },
   {
-    text: "How many events do you schedule weekly?",
-    options: ["1-5", "5-10", "10-20", "20+"],
+    text: "Are you a part of any clubs?",
+    options: ["Yes", "No"],
   },
   {
-    text: "How many events do you schedule weekly?",
-    options: ["1-5", "5-10", "10-20", "20+"],
+    text: "What kind of activities or events do you enjoy most? Select all that apply",
+    options: [
+      "Workshops/Seminars",
+      "Social Gatherings",
+      "Outdoor/Sports",
+      "Community Service/Volunteering",
+      "Cultural/International Events",
+      "Career & Networking Opportunities",
+    ],
+    multiple: true,
   },
   {
-    text: "Which one of the following is the greatest circle?",
-    options: ["Arctic Circle", "Equator", "Tropic of cancer", "Tropic of capricorn"],
-  },
-  {
-    text: "How many events do you schedule weekly?",
-    options: ["1-5", "5-10", "10-20", "20+"],
-  },
-  {
-    text: "How many events do you schedule weekly?",
-    options: ["1-5", "5-10", "10-20", "20+"],
+    text: "What is your primary motivation for attending campus events? Select all that apply",
+    options: [
+      "Networking",
+      "Learning new skills",
+      "Socializing",
+      "Exploring new interests",
+    ],
+    multiple: true,
   },
 ];
 
-export default function SurveyPage() {
-  const router = useRouter();
-  // 1) From Clerk: userId is the logged-in user's ID
+export default function ProfileScreen() {
   const { userId } = useAuth();
+  const [surveyResults, setSurveyResults] = useState<any>(null);
+  const [aiResponse, setAiResponse] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // 2) Track which question the user is on
-  const [currentIndex, setCurrentIndex] = useState(0);
-
-  // 3) Store each question's selected answer. Initialize with null for each question.
-  const [answers, setAnswers] = useState<(string | null)[]>(
-    () => QUESTIONS.map(() => null)
-  );
-
-  // Extract the current question's data
-  const currentQuestion = QUESTIONS[currentIndex];
-  const total = QUESTIONS.length;
-
-  // Called when user taps an option
-  const selectOption = (option: string) => {
-    console.log(
-      `selectOption: User selected "${option}" for question index ${currentIndex}`
-    );
-    const newAnswers = [...answers];
-    newAnswers[currentIndex] = option;
-    setAnswers(newAnswers);
-  };
-
-  // Check if an option is selected
-  const isSelected = (option: string) => {
-    return answers[currentIndex] === option;
-  };
-
-  // Called when user taps "Next" or "Submit"
-  const handleNext = async () => {
-    console.log(`handleNext: currentIndex = ${currentIndex}`);
-    // If not on the final question, show the next one
-    if (currentIndex < total - 1) {
-      console.log("handleNext: moving to the next question");
-      setCurrentIndex((prev) => prev + 1);
-    } else {
-      // We are on the last question -> Submit answers
-      console.log("handleNext: Reached the last question!");
-      console.log("User answers:", answers);
-
-      // Make sure user is logged in with Clerk
-      if (!userId) {
-        console.error("No userId found. Are you logged in?");
-        router.replace("/home");
-        return;
-      }
-
-      console.log(`Submitting to AWS with userId=${userId}...`);
-      // POST answers to your AWS endpoint
+  // 1. Fetch survey results using the Clerk userId
+  useEffect(() => {
+    async function fetchSurveyResults() {
+      if (!userId) return;
       try {
         const response = await fetch(
-          "https://2lt3y32cwl.execute-api.us-east-1.amazonaws.com/demo/survey",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              userId,
-              answers,
-            }),
-          }
+          `https://2lt3y32cwl.execute-api.us-east-1.amazonaws.com/test2/survey?userId=${userId}`
         );
-
-        if (!response.ok) {
-          // If the server responded with an error code, parse and throw
-          const errorData = await response.json();
-          throw new Error(`Server Error ${response.status}: ${JSON.stringify(errorData)}`);
+        const data = await response.json();
+        if (data.surveyResults) {
+          setSurveyResults(data.surveyResults);
+        } else {
+          setError("No survey results found for your account.");
+          setLoading(false);
         }
-
-        console.log("Survey data saved successfully!");
-      } catch (err) {
-        console.error("Failed to submit survey:", err);
+      } catch (err: any) {
+        console.error("Error fetching survey results:", err);
+        setError("Error fetching survey results.");
+        setLoading(false);
       }
-
-      // Finally, navigate away (e.g., to home)
-      console.log("Navigating to /home...");
-      router.replace("/home");
     }
+    fetchSurveyResults();
+  }, [userId]);
+
+  // Helper to format an answer: if it's an array, join its values; otherwise, return the value directly.
+  const formatAnswer = (answer: any): string => {
+    if (Array.isArray(answer)) {
+      return answer.join(", ");
+    }
+    return answer;
   };
 
+  // 2. Once we have survey results, call Gemini API to generate a personalized message.
+  useEffect(() => {
+    async function fetchGeminiResponse() {
+      if (!surveyResults) return;
+      // Build a detailed prompt from the survey questions and answers.
+      let prompt = "The following are the survey questions and the user's responses:\n\n";
+      // Expecting surveyResults.answers to be in the form: { "answers": [ ... ] }
+      const answers = surveyResults.answers;
+      for (let i = 0; i < QUESTIONS.length; i++) {
+        const questionText = QUESTIONS[i].text;
+        const answerText = formatAnswer(answers[i]);
+        prompt += `Question ${i + 1}: ${questionText}\nAnswer: ${answerText}\n\n`;
+      }
+      prompt += "Based on these responses, please generate a personalized profile message for the user.";
+
+      try {
+        // Initialize the client with your API key.
+        const genAI = new GoogleGenerativeAI("AIzaSyD1789j5r9sf50BnCGF2VV6NKYUF1G51jY"); // Replace with your actual API key
+        // Select the Gemini 2.0 Flash model.
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
+        setAiResponse(text);
+      } catch (err: any) {
+        console.error("Error calling Gemini API:", err);
+        setError("Error generating AI response.");
+      }
+      setLoading(false);
+    }
+    fetchGeminiResponse();
+  }, [surveyResults]);
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#000" />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.errorText}>{error}</Text>
+      </View>
+    );
+  }
+
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Top header row: back button + question counter */}
-      <View style={styles.headerContainer}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>{"<"}</Text>
-        </TouchableOpacity>
-        <Text style={styles.questionCounter}>
-          {currentIndex + 1} of {total}
-        </Text>
-      </View>
-
-      {/* Main content area */}
-      <View style={styles.mainContainer}>
-        {/* Question text */}
-        <Text style={styles.questionText}>{currentQuestion.text}</Text>
-
-        {/* Display each option as a button */}
-        {currentQuestion.options.map((option, idx) => {
-          const selected = isSelected(option);
-          return (
-            <TouchableOpacity
-              key={idx}
-              style={[
-                styles.optionContainer,
-                selected && styles.optionSelected,
-              ]}
-              onPress={() => selectOption(option)}
-            >
-              <Text
-                style={[
-                  styles.optionText,
-                  selected && styles.optionTextSelected,
-                ]}
-              >
-                {option}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-
-        {/* Next/Submit Button */}
-        <TouchableOpacity
-          style={[
-            styles.nextButton,
-            !answers[currentIndex] && styles.nextButtonDisabled,
-          ]}
-          onPress={handleNext}
-          disabled={!answers[currentIndex]} // disable until user selects an option
-        >
-          <Text style={styles.nextButtonText}>
-            {currentIndex < total - 1 ? "Next" : "Submit"}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+    <View style={styles.container}>
+      <Text style={styles.title}>Profile Page</Text>
+      <Text style={styles.subtitle}>Your personalized message:</Text>
+      <Text style={styles.response}>{aiResponse}</Text>
+    </View>
   );
 }
 
-//
-// STYLES - Mirroring the design from your sign-in page
-//
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 16,
     backgroundColor: "#fff",
   },
-  headerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 24,
-    paddingTop: 16,
-  },
-  backButton: {
-    paddingRight: 16,
-    paddingVertical: 8,
-  },
-  backButtonText: {
-    fontSize: 20,
-    color: PRIMARY_COLOR,
-    fontWeight: "600",
-  },
-  questionCounter: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#6e6e6e",
-  },
-  mainContainer: {
+  loadingContainer: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 32,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  questionText: {
-    fontSize: 22,
+  title: {
+    fontSize: 24,
     fontWeight: "bold",
-    color: "#333",
-    marginBottom: 24,
+    marginBottom: 16,
   },
-  optionContainer: {
-    width: "100%",
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#ddd",
+  subtitle: {
+    fontSize: 18,
     marginBottom: 12,
   },
-  optionSelected: {
-    borderColor: PRIMARY_COLOR,
-    backgroundColor: "#f3f9ff",
-  },
-  optionText: {
+  response: {
     fontSize: 16,
-    fontWeight: "500",
-    color: "#333",
+    color: "green",
+    textAlign: "center",
   },
-  optionTextSelected: {
-    color: PRIMARY_COLOR,
-    fontWeight: "700",
-  },
-  nextButton: {
-    marginTop: 20,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: PRIMARY_COLOR,
-  },
-  nextButtonDisabled: {
-    backgroundColor: "#ccc",
-  },
-  nextButtonText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "600",
+  errorText: {
+    fontSize: 16,
+    color: "red",
+    textAlign: "center",
   },
 });
