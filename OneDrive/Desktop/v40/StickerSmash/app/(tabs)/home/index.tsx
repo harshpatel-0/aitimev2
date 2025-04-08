@@ -7,11 +7,26 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Modal,
+  Dimensions,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { useRouter, useNavigation } from "expo-router";
 import { useUser } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+
+interface EventItem {
+  id: string;
+  clubName: string;
+  title: string;
+  time: string; // e.g., "Thursday, March 30 at 11:35AM"
+  location: string;
+  gradient: string[];
+  icon: string;
+}
+
+const screenWidth = Dimensions.get("window").width;
 
 // Helper function to parse event date from a string like "Thursday, March 30 at 11:35AM"
 function parseEventDate(timeStr) {
@@ -40,32 +55,40 @@ function parseEventDate(timeStr) {
 }
 
 // Static arrays for trending and personalized events
-const trendingEvents = [
+const trendingEvents: EventItem[] = [
   {
     id: "1",
+    clubName: "Test",
     title: "Career Fair",
     time: "Thursday, March 30 at 15:00",
+    location: "test",
     gradient: ["#FEC84B", "#FDA65A"],
     icon: "briefcase",
   },
   {
     id: "2",
+    clubName: "test",
     title: "Group Fitness Class",
     time: "Thursday, March 30 at 11:00",
+    location: "test",
     gradient: ["#B9E4F1", "#EAF4FF"],
     icon: "barbell",
   },
   {
     id: "3",
+    clubName: "test",
     title: "Art Exhibit",
     time: "Thursday, March 30 at 14:00",
+    location:  "test",
     gradient: ["#FFF5CC", "#FDEEA8"],
     icon: "color-palette",
   },
   {
     id: "4",
+    clubName: "test",
     title: "Music Fest",
     time: "Thursday, March 30 at 19:00",
+    location: "test",
     gradient: ["#D1D8E0", "#F9F9F9"],
     icon: "musical-notes",
   },
@@ -88,12 +111,14 @@ const personalizedEvents = [
   },
 ];
 
+
 export default function HomeScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const { isLoaded, user } = useUser();
   const [todaysEventCount, setTodaysEventCount] = useState(0);
   const [fetchingEvents, setFetchingEvents] = useState(true);
+  const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
 
   useEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -159,6 +184,11 @@ export default function HomeScreen() {
 
   const totalEvents = trendingEvents.length;
 
+  // Used for Modal
+  const closeModal = () => {
+    setSelectedEvent(null);
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.scrollContainer}>
       <View style={styles.container}>
@@ -200,7 +230,7 @@ export default function HomeScreen() {
           {trendingEvents.map((event) => (
             <TouchableOpacity
               key={event.id}
-              onPress={() => router.push(`/events/${event.id}`)}
+              onPress={() => setSelectedEvent(event)}
               style={styles.cardWrapper}
             >
               <LinearGradient
@@ -230,7 +260,7 @@ export default function HomeScreen() {
           {personalizedEvents.map((event) => (
             <TouchableOpacity
               key={event.id}
-              onPress={() => router.push(`/events/${event.id}`)}
+              onPress={() => setSelectedEvent(event)}
               style={styles.cardWrapper}
             >
               <LinearGradient
@@ -249,6 +279,56 @@ export default function HomeScreen() {
           ))}
         </ScrollView>
       </View>
+      {/* Modal Popup */}
+      <Modal
+        visible={selectedEvent !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={closeModal}
+      >
+        <TouchableWithoutFeedback onPress={closeModal}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+              <View style={styles.modalContent}>
+                {selectedEvent && (
+                  <>
+                  <View style={styles.modalTitleContainer}>
+                    <Ionicons name="calendar" size={22} color="#007AFF" />
+                    <Text style={styles.modalTitle}>{selectedEvent.title}</Text>
+                  </View>
+              
+                  <View style={styles.modalDetailRow}>
+                    <Ionicons name="flag" size={20} color="#FF3B30" />
+                    <Text style={styles.modalDetailText}>{selectedEvent.clubName}</Text>
+                  </View>
+              
+                  <View style={styles.modalDetailRow}>
+                    <Ionicons name="calendar-outline" size={20} color="#3A73AF" />
+                    <Text style={styles.modalDetailText}>{selectedEvent.time}</Text>
+                  </View>
+              
+                  <View style={styles.modalDetailRow}>
+                    <Ionicons name="location-outline" size={20} color="#34C759" />
+                    <Text style={styles.modalDetailText}>{selectedEvent.location}</Text>
+                  </View>
+                  
+                  <TouchableOpacity
+                    style={styles.modalRSVPButton}
+                    onPress={() => {
+                      // TODO: Replace this with your RSVP logic or navigation
+                      alert(`LOGIC NOT IMPLEMENTED\n\nNeed to webscrape URL\n\nRSVP'd to ${selectedEvent?.title}`);
+                      closeModal();
+                    }}
+                  >
+                    <Text style={styles.modalRSVPText}>RSVP</Text>
+                  </TouchableOpacity>
+                </>
+                )}  
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </ScrollView>
   );
 }
@@ -375,4 +455,68 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+    /* Modal */
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    modalContent: {
+      width: screenWidth * 0.85,
+      backgroundColor: "#ffffff",
+      borderRadius: 20,
+      padding: 20,
+      borderWidth: 1,
+      borderColor: "#DDE3F0",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 8,
+      elevation: 6,
+      alignItems: "flex-start",
+    },
+    modalTitleContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 12,
+    },
+    
+    modalTitle: {
+      fontSize: 18,
+      fontWeight: "bold",
+      color: "#007AFF",
+      marginLeft: 8,
+    },
+    
+    modalDetailRow: {
+      backgroundColor: "#F1F5FC",
+      borderRadius: 12,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      marginTop: 10,
+      flexDirection: "row",
+      alignItems: "center",
+      width: "100%",
+    },
+    
+    modalDetailText: {
+      fontSize: 15,
+      color: "#333",
+      marginLeft: 8,
+    },
+    modalRSVPButton: {
+      backgroundColor: "#007AFF",
+      borderRadius: 12,
+      paddingVertical: 12,
+      paddingHorizontal: 24,
+      marginTop: 20,
+      alignSelf: "center",
+    },
+    modalRSVPText: {
+      color: "white",
+      fontWeight: "bold",
+      fontSize: 16,
+      textAlign: "center",
+    },
 });

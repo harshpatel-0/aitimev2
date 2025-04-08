@@ -43,3 +43,29 @@
 
 expo-env.d.ts
 # @end expo-cli
+
+# node and build
+node_modules/
+dist/
+build/
+.expo/
+.expo-shared/
+
+# system files
+.DS_Store
+Thumbs.db
+
+# env
+.env
+.env.*
+
+# logs
+*.log
+
+# IDE/editor
+.vscode/
+.idea/
+
+# package locks (if you're not using them)
+# package-lock.json
+# yarn.lock

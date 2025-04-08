@@ -14,7 +14,7 @@ import {
   Modal,
   TouchableWithoutFeedback,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Entypo, Ionicons } from "@expo/vector-icons";
 
 interface EventItem {
   id: string;
@@ -252,11 +252,15 @@ export default function CombinedCalendarEventsScreen() {
       <View style={styles.dateNavigatorContainer}>
         {/* Month + Arrows */}
         <View style={styles.monthContainer}>
-          <Button title="<" onPress={handlePrevMonth} color="#000" />
+          <TouchableOpacity onPress={handlePrevMonth}>
+            <Entypo name="chevron-with-circle-left" size={24} color="black" />
+          </TouchableOpacity>
           <Text style={styles.monthText}>
             {monthNames[currentMonth]} {currentYear}
           </Text>
-          <Button title=">" onPress={handleNextMonth} color="#000" />
+          <TouchableOpacity onPress={handleNextMonth}>
+            <Entypo name="chevron-with-circle-right" size={24} color="black" />
+          </TouchableOpacity>
         </View>
 
         {/* Days of the Month in a Horizontal List */}
@@ -375,12 +379,38 @@ export default function CombinedCalendarEventsScreen() {
               <View style={styles.modalContent}>
                 {selectedEvent && (
                   <>
+                  <View style={styles.modalTitleContainer}>
+                    <Ionicons name="calendar" size={22} color="#007AFF" />
                     <Text style={styles.modalTitle}>{selectedEvent.title}</Text>
-                    <Text style={styles.modalDetails}>🚩 {selectedEvent.clubName}</Text>
-                    <Text style={styles.modalDetails}>🗓️ {selectedEvent.time}</Text>
-                    <Text style={styles.modalDetails}>📍 {selectedEvent.location}</Text>
-                  </>
-                )}
+                  </View>
+              
+                  <View style={styles.modalDetailRow}>
+                    <Ionicons name="flag" size={20} color="#FF3B30" />
+                    <Text style={styles.modalDetailText}>{selectedEvent.clubName}</Text>
+                  </View>
+              
+                  <View style={styles.modalDetailRow}>
+                    <Ionicons name="calendar-outline" size={20} color="#3A73AF" />
+                    <Text style={styles.modalDetailText}>{selectedEvent.time}</Text>
+                  </View>
+              
+                  <View style={styles.modalDetailRow}>
+                    <Ionicons name="location-outline" size={20} color="#34C759" />
+                    <Text style={styles.modalDetailText}>{selectedEvent.location}</Text>
+                  </View>
+                  
+                  <TouchableOpacity
+                    style={styles.modalRSVPButton}
+                    onPress={() => {
+                      // TODO: Replace this with your RSVP logic or navigation
+                      alert(`LOGIC NOT IMPLEMENTED\n\nNeed to webscrape URL\n\nRSVP'd to ${selectedEvent?.title}`);
+                      closeModal();
+                    }}
+                  >
+                    <Text style={styles.modalRSVPText}>RSVP</Text>
+                  </TouchableOpacity>
+                </>
+                )}  
               </View>
             </TouchableWithoutFeedback>
           </View>
@@ -419,7 +449,7 @@ const styles = StyleSheet.create({
   },
   monthContainer: {
     flexDirection: "row",
-    width: "90%",
+    width: "70%",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 10,
@@ -598,30 +628,73 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalContent: {
-    width: screenWidth * 0.8,
-    backgroundColor: "#fff",
-    borderRadius: 12,
+    width: screenWidth * 0.85,
+    backgroundColor: "#ffffff",
+    borderRadius: 20,
     padding: 20,
-    borderWidth: 2,
-    borderColor: "#3A73AF",
+    borderWidth: 1,
+    borderColor: "#DDE3F0",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-    alignItems: "center",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+    alignItems: "flex-start",
   },
+  modalTitleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  
   modalTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    marginBottom: 8,
-    color: "#3A73AF",
-    textAlign: "center",
+    color: "#007AFF",
+    marginLeft: 8,
   },
-  modalDetails: {
-    fontSize: 16,
-    marginBottom: 4,
-    textAlign: "center",
+  
+  modalDetailRow: {
+    backgroundColor: "#F1F5FC",
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    width: "100%",
+  },
+  
+  modalDetailText: {
+    fontSize: 15,
     color: "#333",
+    marginLeft: 8,
   },
+  modalRSVPButton: {
+    backgroundColor: "#007AFF",
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    marginTop: 20,
+    alignSelf: "center",
+  },
+  modalRSVPText: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 16,
+    textAlign: "center",
+  },  
+//   modalTitle: {
+//     fontSize: 18,
+//     fontWeight: "bold",
+//     marginBottom: 20,
+//     color: "#3A73AF",
+//     textAlign: "center",
+//   },
+//   modalDetails: {
+//     fontSize: 16,
+//     marginBottom: 4,
+//     textAlign: "center",
+//     color: "#333",
+//   },
 });

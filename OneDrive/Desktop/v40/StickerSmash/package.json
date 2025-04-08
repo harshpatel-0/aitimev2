@@ -17,7 +17,8 @@
   "dependencies": {
     "@clerk/clerk-expo": "^2.8.0",
     "@clerk/types": "^4.47.0",
-    "@expo/vector-icons": "^14.0.4",
+    "@expo/vector-icons": "^14.0.2",
+    "@google/generative-ai": "^0.24.0",
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.0.14",
     "expo": "~52.0.37",
